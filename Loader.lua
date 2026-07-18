@@ -8,5 +8,5 @@ local Games = { -- the only reason i added the game names was for myself i dont 
 local Game = Games[game.GameId]
 
 if Game then
-  loadstring(game:HttpGet(Game[2]))()
+    loadstring(game:HttpGet(Game[2]))()
 end
