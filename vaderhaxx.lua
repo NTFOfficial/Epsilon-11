@@ -16,16 +16,27 @@ if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
+local runstuff = nil -- fucking everyone wants to be "special"
+local getstuff = nil
+
+if syn then
+	runstuff = run_on_actor
+	getstuff = getactors
+else
+	runstuff = run_on_thread
+	getstuff = get_actor_threads
+end
+
 local mainActor
 
 local run = function(s)
-	return if mainActor then run_on_actor(mainActor, s) else loadstring(s)()
+	return if mainActor then runstuff(mainActor, s) else loadstring(s)()
 end
 
 local tried = tick() 
 repeat -- shit actor resolver
 	local id, event = create_comm_channel()
-	local actors = getactors()
+	local actors = getstuff()
 	event.Event:Connect(function(...)
 		local data, actor = ...
 		if mainActor then
@@ -38,7 +49,7 @@ repeat -- shit actor resolver
 		end
 	end)
 	for i, v in next, actors do -- fuck you 3dsboy08 smd faggot
-		run_on_actor(v, "local actorId = " .. i .. "\n" .. [[
+		runstuff(v, "local actorId = " .. i .. "\n" .. [[
 			local id, actor = ...
 			local event = get_comm_channel(id)
 
@@ -1517,7 +1528,7 @@ do
 				utilities.setproperty.shared.activated(obj, obj.activated)
 			end,
 			transparency = function(obj, new)
-				obj.Drawingobject.Opacity = new
+				obj.Drawingobject.Transparency = new
 				obj.getpropertychangedsignal:Fire("transparency", new)
 			end,
 		},
@@ -1593,7 +1604,7 @@ do
 				obj.getpropertychangedsignal:Fire("font", new)
 			end,
 			outline = function(obj, new)
-				obj.Drawingobject.Outlined = new
+				obj.Drawingobject.Outline = new
 				obj.getpropertychangedsignal:Fire("outline", new)
 			end,
 			outlinecolor = function(obj, new)
@@ -1603,7 +1614,9 @@ do
 		},
 		image = {
 			data = function(obj, new)
-				--obj.Drawingobject.Data = new
+				pcall(function() -- synapse z enjoys erroring on short strings ;)
+					obj.Drawingobject.Data = new
+				end)
 				obj.getpropertychangedsignal:Fire("data", new)
 			end,
 			rounding = function(obj, new)
@@ -1740,7 +1753,7 @@ do
 
 		local propertylist = utilities.createproperties(object, properties.activated)
 		for i, v in next, (propertylist) do
-            Drawing[i] = v
+			Drawing[i] = v
 		end
 
 		Drawing.identifier = utilities.getnextidentifier() -- increment$per$Drawing$$
@@ -7629,11 +7642,11 @@ do
 				if v.transparency and v.transparency > 0 then
 					if v.transparency == 1 then
 						menu.animations[1 + #menu.animations] = menu.targetrans.Changed:Connect(function()
-							v.Drawingobject.Opacity = menu.targetrans.Value
+							v.Drawingobject.Transparency = menu.targetrans.Value
 						end)
 					else
 						menu.animations[1 + #menu.animations] = menu.targetrans.Changed:Connect(function()
-							v.Drawingobject.Opacity = v.transparency * menu.targetrans.Value
+							v.Drawingobject.Transparency = v.transparency * menu.targetrans.Value
 						end)
 					end
 				end
@@ -7736,8 +7749,10 @@ local emptyCf			        = newCframe()
 local pointToObjectSpace        = newCframe().PointToObjectSpace
 local rayCast                   = workspace.Raycast
 local next                      = next
+setidentity(7)
 local localPing                 = game:GetService("Stats").PerformanceStats.Ping:GetValue()
 local localPingUpdate; localPingUpdate = runService.RenderStepped:Connect(function() 
+setidentity(7)
 	localPing = game:GetService("Stats").PerformanceStats.Ping:GetValue()
 end)
 
@@ -15755,17 +15770,19 @@ do
 				outline.Adornee = v
 				outline.Parent = v
 
+				local shit = this.pInfo.replicator._thirdPersonObject._partSizes[v]
+
 				if isHead then
 					inner.CFrame = CFrame.Angles(math.pi / 2, 0, 0)
-					inner.Radius = v.Size.x * 0.6 + 0.001
-					inner.Height = v.Size.y * 1.3 + 0.001
+					inner.Radius = shit.x * 0.6 + 0.001
+					inner.Height = shit.y * 1.3 + 0.001
 
 					outline.CFrame = inner.CFrame
-					outline.Radius = v.Size.x * 0.6 + 0.15
-					outline.Height = v.Size.y * 1.3 + 0.15
+					outline.Radius = shit.x * 0.6 + 0.15
+					outline.Height = shit.y * 1.3 + 0.15
 				else
-					inner.Size = v.Size + newVec3(0.001, 0.001, 0.001)
-					outline.Size = v.Size + newVec3(0.15, 0.15, 0.15)
+					inner.Size = shit + newVec3(0.001, 0.001, 0.001)
+					outline.Size = shit + newVec3(0.15, 0.15, 0.15)
 				end
 
 				table.insert(this.chamsObjects, inner)
@@ -16058,7 +16075,7 @@ do
 			local heldWeapon = objects.weaponText.object
 
 			if info.weapon then
-				local wepname = info.weapon
+				local wepname = info.weapon.weaponName
 				local splitwepname = string.split(wepname:lower(), "")
 				splitwepname[1] = splitwepname[1]:upper()
 				for i, char in next, splitwepname do
@@ -16483,7 +16500,7 @@ do
 							this.renderOnScreen({
 								boundingRect = esp.getBoundingBox(headcf, torsocf, llegcf, rlegcf, this.DrawingObjects.lastData), 
 								character = char,
-								weapon = this.pInfo.weapon,
+								weapon = this.pInfo.replicator._activeWeaponRegistry[this.pInfo.replicator._activeWeaponIndex] or nil,
 								health = health,
 								maxHealth = maxHealth,
 								rank = this.pInfo.rank,
@@ -17305,7 +17322,15 @@ do
 			visuals.updateViewmodelchams()
 		end)
 
+		local yes = getupvalue(pfModules.ReplicationObject.new, 3)
+
+		setupvalue(pfModules.ReplicationObject.new, 3, {
+			GetPropertyChangedSignal = function()
+				return yes:GetPropertyChangedSignal("TeamColor")
+			end
+		})
 		visuals.thirdPerson.replicationObject = pfModules.ReplicationObject.new(cloneref(localPlayer))
+		setupvalue(pfModules.ReplicationObject.new, 3, yes)
 
 		visuals.thirdPerson.timesincelast3p = 0
 		local setPosition = emptyVec3
