@@ -20043,7 +20043,7 @@ do
 
 		-- Toggle stat menu with the Home key
 		game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
-			if input.KeyCode == Enum.KeyCode.Home then
+			if input.KeyCode == Enum.KeyCode.Home or input.KeyCode == Enum.KeyCode.RightControl then
 				stat_menu = not stat_menu
 				toggleVisibility(graphs, stat_menu)
 			end
